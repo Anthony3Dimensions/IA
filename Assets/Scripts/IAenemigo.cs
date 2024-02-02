@@ -9,7 +9,9 @@ public class IAenemigo : MonoBehaviour
     {
         Patrolling,
 
-        Chasing
+        Chasing,
+
+        Searching
     }
 
     State currentState;
@@ -22,7 +24,11 @@ public class IAenemigo : MonoBehaviour
     [SerializeField] Vector2 patrolAreaSize;
     [SerializeField] float visionRange = 15;
     [SerializeField] float visionAngle = 90;
+    Vector3 lastTargetPosition;
 
+    float searchTimer;
+    [SerializeField]float serachWaitTime = 15;
+    [SerializeField]float searchRadius = 30;
 
     // Start is called before the first frame update
     void Awake()
@@ -47,8 +53,14 @@ public class IAenemigo : MonoBehaviour
             case State.Chasing:
                  Chase();
             break;
+            case State.Searching:
+                 Search();
+            break;
+
         }
     }
+
+  
 
     void Patrol()
     {
@@ -63,13 +75,42 @@ public class IAenemigo : MonoBehaviour
         }
     }
 
+    void Search()
+    {
+        if(OnRange() == true)
+        {
+            searchTimer = 0;
+            currentState = State.Chasing;
+        }
+        searchTimer += Time.deltaTime;
+
+        if(searchTimer < serachWaitTime)
+        {
+            if(enemyAgent.remainingDistance < 0.5f)
+            {
+                 Debug.Log("Buscando punto aleatorio");
+
+                 Vector3 randomSearchPoint = lastTargetPosition + Random.insideUnitSphere * searchRadius;
+                randomSearchPoint.y = lastTargetPosition.y;
+                enemyAgent.destination = randomSearchPoint;
+            }
+          
+        }
+
+        else
+        {
+            currentState = State.Patrolling;
+
+        }
+    }
+
     void Chase()
     {
         enemyAgent.destination = playerTransform.position;
 
         if(OnRange() == false)
         {
-            currentState = State.Patrolling;
+            currentState = State.Searching;
         }
 
     }
@@ -98,7 +139,24 @@ public class IAenemigo : MonoBehaviour
 
         if(distanceToPlayer <= visionRange && angleToPlayer < visionAngle * 0.5f)
         {
-            return true;
+            if(playerTransform.position == lastTargetPosition)
+            {
+                return true;
+            }
+            //return true;
+            RaycastHit hit;
+            if(Physics.Raycast(transform.position, directionToPlayer, out hit, distanceToPlayer))
+            {
+                if(hit.collider.CompareTag("Player"))
+                {
+                    lastTargetPosition = playerTransform.position;
+
+                    return true;
+                }
+            }
+
+            return false;
+           
         }
 
         return false;
