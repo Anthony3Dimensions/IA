@@ -2,8 +2,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using System.Threading;
 
 public class IAenemigo : MonoBehaviour
+
 {
     enum State
     {
@@ -11,7 +13,11 @@ public class IAenemigo : MonoBehaviour
 
         Chasing,
 
-        Searching
+        Searching,
+
+        Attackin,
+
+        Waiting
     }
 
     State currentState;
@@ -30,6 +36,12 @@ public class IAenemigo : MonoBehaviour
     [SerializeField]float serachWaitTime = 15;
     [SerializeField]float searchRadius = 30;
 
+    public Transform[] points;
+    [SerializeField] int pointDestination = 0; 
+    [SerializeField] float rangeAttack = 5;
+
+    private bool repeat = true;
+
     // Start is called before the first frame update
     void Awake()
     {
@@ -39,7 +51,10 @@ public class IAenemigo : MonoBehaviour
 
     void Start()
     {
+        enemyAgent.autoBraking = false;
         currentState = State.Patrolling;
+        enemyAgent.destination = points[pointDestination].position;
+        
     }
 
     // Update is called once per frame
@@ -56,6 +71,14 @@ public class IAenemigo : MonoBehaviour
             case State.Searching:
                  Search();
             break;
+            
+            case State.Waiting:
+                Wait();
+
+            break;
+             case State.Attackin:
+                Attack();
+            break;
 
         }
     }
@@ -71,7 +94,8 @@ public class IAenemigo : MonoBehaviour
 
         if(enemyAgent.remainingDistance < 0.5f)
         {
-            SetRandomPoint();
+            currentState = State.Waiting;
+            //SetRandomPoint();
         }
     }
 
@@ -112,27 +136,26 @@ public class IAenemigo : MonoBehaviour
         {
             currentState = State.Searching;
         }
+        if(OnRangeAttack() == true)
+        {
+            currentState = State.Attackin;
+            
+        }
 
     }
 
-    void SetRandomPoint()
+    /*void SetRandomPoint()
     {
         float randomX = Random.Range(-patrolAreaSize.x / 2, patrolAreaSize.x / 2);
         float randomZ = Random.Range(-patrolAreaSize.y / 2, patrolAreaSize.y / 2);
         Vector3 randomPoint = new Vector3(randomX, 0f, randomZ) + patrolAreaCenter.position;
 
         enemyAgent.destination = randomPoint;
-    }
+    }*/
 
     bool OnRange()
     {
-        /*if(Vector3.Distance(transform.position, playerTransform.position) <= visionRange)
-        {
-            return true;
-        }
-
-        return false;*/
-
+      
         Vector3 directionToPlayer = playerTransform.position - transform.position;
         float distanceToPlayer = directionToPlayer.magnitude;
         float angleToPlayer = Vector3.Angle(transform.forward, directionToPlayer);
@@ -143,7 +166,7 @@ public class IAenemigo : MonoBehaviour
             {
                 return true;
             }
-            //return true;
+            
             RaycastHit hit;
             if(Physics.Raycast(transform.position, directionToPlayer, out hit, distanceToPlayer))
             {
@@ -179,4 +202,77 @@ public class IAenemigo : MonoBehaviour
 
         Gizmos.DrawLine(transform.position, transform.position + fovLine2); 
     }
+
+    void GoPointNext()
+    {
+        if(points.Length == 0)
+        {
+            return;
+        }
+
+        pointDestination = (pointDestination + 1) % points.Length;
+        enemyAgent.destination = points[pointDestination].position;
+    }
+
+    void Wait()
+    {
+        if (repeat == true)
+        {
+            StartCoroutine ("Waiting");
+        }
+    }
+
+     IEnumerator Waiting()
+    {
+        repeat = false;
+        yield return new WaitForSeconds (5);
+        GoPointNext();
+        currentState = State.Patrolling;
+        repeat = true;
+    }
+
+    void Attack()
+    {
+       
+        Debug.Log("Attack");
+        currentState = State.Chasing;
+    }
+
+      bool OnRangeAttack()
+    {
+        
+
+        Vector3 directionToPlayer = playerTransform.position - transform.position;
+        float distanceToPlayer = directionToPlayer.magnitude;
+        float angleToPlayer = Vector3.Angle(transform.forward, directionToPlayer);
+
+        if(distanceToPlayer <= visionRange && angleToPlayer< visionAngle* 0.2f)
+        {
+            
+
+            if(playerTransform.position == lastTargetPosition)
+            {
+                return true;
+            }
+
+            RaycastHit hit;
+            if(Physics.Raycast(transform.position, directionToPlayer, out hit, distanceToPlayer))
+            {
+                if(hit.collider.CompareTag("Player"))
+                {
+                    lastTargetPosition = playerTransform.position;
+
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return false;
+    }
+
+
+ 
+
+    
 }
