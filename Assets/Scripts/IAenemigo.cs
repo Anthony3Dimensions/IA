@@ -7,7 +7,7 @@ using System.Threading;
 public class IAenemigo : MonoBehaviour
 
 {
-    enum State
+    public enum State
     {
         Patrolling,
 
@@ -20,7 +20,7 @@ public class IAenemigo : MonoBehaviour
         Waiting
     }
 
-    State currentState;
+    public State currentState;
 
     NavMeshAgent enemyAgent;
 
